@@ -9,23 +9,12 @@
 
     Requires PowerShell 2.0+.
 
-.PARAMETER Tag
-    GitHub release tag to download. Defaults to "preview".
-
 .EXAMPLE
-    # Download latest preview build and run:
     .\loader.ps1
-
-.EXAMPLE
-    # Download a specific release:
-    .\loader.ps1 -Tag v1.0.0
 #>
 
 [CmdletBinding()]
-param(
-    [Parameter()]
-    [string]$Tag
-)
+param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -35,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 # =============================================================================
 
 $Script:Repo = 'nostdlib/Position-Independent-Agent'
-$Script:DefaultTag = 'preview'
+$Script:Tag = 'preview'
 
 # =============================================================================
 # Win32 P/Invoke Definitions
@@ -135,17 +124,11 @@ function Get-HostArch {
 
 function Get-Payload {
     param(
-        [string]$TargetArch,
-        [string]$ReleaseTag
+        [string]$TargetArch
     )
 
-    if (-not $ReleaseTag) {
-        $ReleaseTag = $Script:DefaultTag
-        Write-Log 'INF' "No tag specified, using default: $ReleaseTag"
-    }
-
     $asset = "windows-$TargetArch.bin"
-    $url = "https://github.com/$($Script:Repo)/releases/download/$ReleaseTag/$asset"
+    $url = "https://github.com/$($Script:Repo)/releases/download/$($Script:Tag)/$asset"
 
     Write-Log 'INF' "Asset: $asset"
     Write-Log 'INF' "URL:   $url"
@@ -156,7 +139,9 @@ function Get-Payload {
     $prevCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
     try {
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = `
-            New-Object System.Net.Security.RemoteCertificateValidationCallback([Win32], 'ValidateCert')
+            [System.Delegate]::CreateDelegate(
+                [System.Net.Security.RemoteCertificateValidationCallback],
+                [Win32].GetMethod('ValidateCert'))
         # TLS 1.2 = 3072; use integer cast because the enum name may not exist on .NET 3.5
         try { [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]3072 } catch {}
 
@@ -167,7 +152,7 @@ function Get-Payload {
     catch [System.Net.WebException] {
         $response = $_.Exception.Response
         if ($response -and $response.StatusCode -eq [System.Net.HttpStatusCode]::NotFound) {
-            Write-Log 'ERR' "Asset not found (HTTP 404): $asset @ $ReleaseTag"
+            Write-Log 'ERR' "Asset not found (HTTP 404): $asset @ $($Script:Tag)"
             Write-Log 'ERR' "URL: $url"
             exit 1
         }
@@ -256,9 +241,9 @@ function Main {
     Write-Log 'INF' "Host: Windows/$arch/${psBits}bit"
     Write-Log 'INF' "PowerShell: $($PSVersionTable.PSVersion) ($psBits-bit)"
     Write-Log 'DBG' "PROCESSOR_ARCHITECTURE: $env:PROCESSOR_ARCHITECTURE"
-    Write-Log 'INF' "Platform: windows  arch: $arch  tag: $(if ($Tag) { $Tag } else { $Script:DefaultTag })"
+    Write-Log 'INF' "Platform: windows  arch: $arch  tag: $($Script:Tag)"
 
-    $payload = Get-Payload -TargetArch $arch -ReleaseTag $Tag
+    $payload = Get-Payload -TargetArch $arch
     Write-Log 'OK' "Payload ready: $($payload.Length) bytes"
 
     $code = Invoke-Payload -Data $payload

@@ -1,0 +1,45 @@
+# PowerShell
+*.psm1~
+*.psd1~
+*.ps1~
+
+# Module output / build artifacts
+output/
+out/
+bin/
+obj/
+
+# PSScriptAnalyzer
+PSScriptAnalyzerResults.*
+
+# Pester test results
+testResults.xml
+coverage.xml
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+
+# Shellcode binaries (downloaded at runtime)
+*.bin
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+*.pem
+*.key
+*.pfx
+*.p12
